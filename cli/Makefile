@@ -1,4 +1,5 @@
 export GO111MODULE=on
+export GOVERSION=b64:$(shell go version | sed "s/go version //g" | base64)
 
 all: deps
 spt: build_snapshot

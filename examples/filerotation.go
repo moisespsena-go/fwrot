@@ -15,6 +15,8 @@ func main() {
 		})
 	defer r.Close()
 
+	r.W([]byte("a\n"))
+
 	var t time.Time
 	h, _ := r.History(t, t, 0)
 	for _, e := range h {

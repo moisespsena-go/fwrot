@@ -10,7 +10,7 @@ builds:
       - GO111MODULE=on
 
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+      - -s -w -X main.goversion={{.Env.GOVERSION}} -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
 
     asmflags:
       - all=-trimpath={{.Env.GOPATH}}

@@ -73,18 +73,21 @@ func (this *Rotator) Close() (err error) {
 	return nil
 }
 
-func (this *Rotator) Write(p []byte) (n int, err error) {
+func (this *Rotator) Send(p []byte) (n int, err error) {
 	if this.f == nil {
-		var err error
 		_, err = this.Open()
 		if err != nil {
-			log.Error(err)
+			return
 		}
 	}
 	if _, err = this.AutoRotate(len(p)); err != nil {
 		return
 	}
 	return this.f.Write(p)
+}
+
+func (this *Rotator) Write(p []byte) (n int, err error) {
+	return this.Send(p)
 }
 
 func (this *Rotator) Open() (f *os.File, err error) {

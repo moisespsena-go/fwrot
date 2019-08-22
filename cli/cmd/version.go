@@ -1,4 +1,4 @@
-// Copyright © 2019 NAME HERE <EMAIL ADDRESS>
+// Copyright © 2019 Moises P. Sena <moisespsena@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,33 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
 import (
-	"encoding/base64"
-	"strings"
+	"os"
 
-	"github.com/moisespsena-go/glogrotate/cli/cmd"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
-var goversion, version, commit, date string
-
-func init() {
-	if strings.HasPrefix(goversion, "b64:") {
-		b, _ := base64.StdEncoding.DecodeString(goversion[4:])
-		goversion = string(b)
-	}
-
-	cmd.Version.Version,
-		cmd.Version.Commit,
-		cmd.Version.Date,
-		cmd.Version.GoVersion =
-		version,
-		commit,
-		date,
-		strings.TrimSpace(goversion)
+var Version struct {
+	Version, Commit, Date, GoVersion string
 }
 
-func main() {
-	cmd.Execute()
+// versionCmd represents the version command
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show binary version",
+	Run: func(cmd *cobra.Command, args []string) {
+		b, _ := yaml.Marshal(Version)
+		os.Stdout.Write(b)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
 }

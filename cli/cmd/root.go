@@ -91,12 +91,13 @@ TIME FORMAT:
 		Rotator := logrotate.New(out, opt)
 		defer Rotator.Close()
 		var r io.Reader = os.Stdin
-		if !silent {
-			r = io.TeeReader(r, os.Stdout)
+		if silent {
+			_, err = io.Copy(Rotator, r)
+		} else {
+			r = io.TeeReader(r, Rotator)
+			_, err = io.Copy(os.Stdout, r)
 		}
-
-		_, err = io.Copy(Rotator, r)
-		return nil
+		return
 	},
 }
 
