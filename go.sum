@@ -1,0 +1,10 @@
+github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
+github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/moisespsena-go/error-wrap v0.0.0-20190401221633-16a254c7a0f6 h1:PqBedZ5lStCri6t+mXOk7jDt2itUpwA7BZ1V3j7bQBU=
+github.com/moisespsena-go/error-wrap v0.0.0-20190401221633-16a254c7a0f6/go.mod h1:yrSo541xFER/cxsm37eUkpNh/eunMR98ttxwtKRIk6w=
+github.com/moisespsena-go/logging v0.0.0-20190822142506-09274dce1390 h1:DMU8Rl1JZX+plg8BZ+0FQgCIJ5zGN9PejssPp+AJ3OI=
+github.com/moisespsena-go/logging v0.0.0-20190822142506-09274dce1390/go.mod h1:chspTycy0Z9CvZOs5KOE32kDRuskZTFuZzSq8Vggyv4=
+github.com/moisespsena-go/path-helpers v0.0.0-20190822140957-0183f796f60f h1:nfL66v7WN0hyTLX9mP8t5Mxjnk6xm0wUnQW09WvpTPE=
+github.com/moisespsena-go/path-helpers v0.0.0-20190822140957-0183f796f60f/go.mod h1:s1lEKAGir6j6uZPuirclRYOOJxKlbFkWLL6ZmH1LPs4=
+github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee h1:P6U24L02WMfj9ymZTxl7CxS73JC99x3ukk+DBkgQGQs=
+github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee/go.mod h1:3uODdxMgOaPYeWU7RzZLxVtJHZ/x1f/iHkBZuKJDzuY=
