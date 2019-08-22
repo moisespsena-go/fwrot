@@ -46,7 +46,7 @@ func New(path string, options ...Options) *Rotator {
 	dir := filepath.Dir(path)
 
 	if opt.HistoryDir == "" {
-		panic("rotator.new: option root is required")
+		opt.HistoryDir = path + ".glogrotate"
 	}
 
 	name := filepath.Base(path)
@@ -81,8 +81,6 @@ func (this *Rotator) Write(p []byte) (n int, err error) {
 			log.Error(err)
 		}
 	}
-	this.mu.RLock()
-	defer this.mu.RUnlock()
 	if _, err = this.AutoRotate(len(p)); err != nil {
 		return
 	}
@@ -106,7 +104,6 @@ func (this *Rotator) Open() (f *os.File, err error) {
 	if this.Options.DirMode == 0 {
 		bits := permbits.FileMode(mode)
 		bits.SetUserExecute(true)
-
 		this.Options.DirMode = os.FileMode(bits)
 	}
 
@@ -116,6 +113,8 @@ func (this *Rotator) Open() (f *os.File, err error) {
 		} else {
 			return
 		}
+	} else {
+		os.Chmod(this.Options.HistoryDir, this.Options.DirMode)
 	}
 
 	if _, err = os.Stat(this.dir); err != nil {
@@ -124,9 +123,17 @@ func (this *Rotator) Open() (f *os.File, err error) {
 		} else {
 			return
 		}
+	} else {
+		os.Chmod(this.dir, this.Options.DirMode)
 	}
 
 	if err = this.loadControlOrCreate(); err != nil {
+		return
+	}
+
+	if _, err = os.Stat(this.Path); err == nil {
+		os.Chmod(this.Path, this.Options.FileMode)
+	} else if !os.IsNotExist(err) {
 		return
 	}
 
@@ -143,7 +150,10 @@ func (this *Rotator) RotateOptions() Options {
 }
 
 func (this *Rotator) AutoRotate(increaseSize int) (entry *FileHistroyEntry, err error) {
-	if this.Options.MaxSize > 0 {
+	if ms := this.Options.MaxSize; ms >= 0 {
+		if ms == 0 {
+			ms = MaxSize
+		}
 		var s int64
 		if s, err = this.f.Seek(0, io.SeekEnd); err != nil {
 			return

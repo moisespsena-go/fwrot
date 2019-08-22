@@ -29,7 +29,7 @@ func (this RotationDuration) Valid() bool {
 
 type Options struct {
 	HistoryPath  string // path inside root
-	MaxSize      int64
+	MaxSize      int64 // -1 disables limitter
 	Duration     RotationDuration
 	FileMode     os.FileMode
 	DirMode      os.FileMode
