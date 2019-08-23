@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	logrotate "github.com/moisespsena-go/glogrotate"
 
@@ -34,26 +35,15 @@ var name = filepath.Base(os.Args[0])
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   name,
-	Short: "Starts file writer rotation reading STDIN and writes to OUT",
+	Short: "Starts file writer rotation reads IN and writes to OUT",
 
-	Long: strings.ReplaceAll(`Starts file writer rotation reading STDIN and writes to OUT.
-ENV VARIABLES:
-	{N}_ROOT, {N}_PATH, {N}_OUT, {N}_DURATION, {N}_MAX_SIZE, {N}_MAX_COUNT, {N}_DIR_MODE, {N}_FILE_MODE
-	
-TIME FORMAT:
-	%Y - Year. (example: 2006)
-	%M - Month with left zero pad. (examples: 01, 12)
-	%D - Day with left zero pad. (examples: 01, 31)
-	%h - Hour with left zero pad. (examples: 00, 05, 23)
-	%m - Minute with left zero pad. (examples: 00, 05, 59)
-	%s - Second with left zero pad. (examples: 00, 05, 59)
-	%Z - Time Zone. If not set, uses UTC time. (examples: +0700, -0330)
-`, "{N}", strings.Trim(strings.ToUpper(name), "_")),
+	Long: longHelp,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		var (
 			flags          = cmd.Flags()
 			out            = viper.GetString("out")
-			silent, _      = flags.GetBool("silent")
+			in             = viper.GetString("in")
+			silent         = viper.GetBool("silent")
 			printConfig, _ = flags.GetBool("print")
 		)
 
@@ -84,18 +74,84 @@ TIME FORMAT:
 
 		if printConfig {
 			fmt.Fprintln(os.Stdout, "out: "+out)
+			fmt.Fprintln(os.Stdout, "in: "+in)
 			fmt.Fprintln(os.Stdout, cfg.Yaml())
 			return
 		}
 
 		Rotator := logrotate.New(out, opt)
 		defer Rotator.Close()
-		var r io.Reader = os.Stdin
+
+		rw := &Chan{make(chan []byte)}
+		var wg sync.WaitGroup
+		var closers []io.Closer
+
+		inm := map[string]interface{}{}
+
+		// +udp:localhost:5678
+		for _, in := range strings.Split(in, "+") {
+			in = strings.TrimSpace(in)
+
+			if _, ok := inm[in]; ok {
+				continue
+			}
+			inm[in] = true
+
+			switch {
+			case in == "" || in == "-":
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					defer func() {
+						for _, c := range closers {
+							c.Close()
+						}
+					}()
+					if _, err := io.Copy(rw, os.Stdin); err != nil {
+						if err != io.EOF {
+							log.Errorf("STDIN: %s", err.Error())
+						}
+					}
+				}()
+			case isProto(in, "udp"):
+				udps := NewUDPServer(in, rw)
+				closers = append(closers, udps)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := udps.ListenAndServe(); err != nil {
+						log.Errorf("UDP Serve[%s]: %s", in, err)
+					}
+				}()
+			case isProto(in, "http"):
+				tcps := NewHTTPServerReader(in, rw)
+				closers = append(closers, tcps)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := tcps.ListenAndServe(); err != nil {
+						log.Errorf("HTTP Serve[%s]: %s", in, err)
+					}
+				}()
+			case isProto(in, "tcp"):
+				tcps := NewTCPServerReader(in, rw)
+				closers = append(closers, tcps)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := tcps.ListenAndServe(); err != nil {
+						log.Errorf("TCP Serve[%s]: %s", in, err)
+					}
+				}()
+			}
+		}
+
+		inm = nil
+
 		if silent {
-			_, err = io.Copy(Rotator, r)
+			_, err = io.Copy(Rotator, rw)
 		} else {
-			r = io.TeeReader(r, Rotator)
-			_, err = io.Copy(os.Stdout, r)
+			_, err = io.Copy(os.Stdout, io.TeeReader(rw, Rotator))
 		}
 		return
 	},
@@ -115,8 +171,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
 
 	flags := rootCmd.Flags()
-	flags.StringP("out", "o", "", "the output file.")
-	flags.StringP("history-dir", "r", "OUT.history", "history root directory")
+	flags.StringP("out", "o", "", "the OUTPUT file")
+	flags.StringP("in", "i", "-", "the INPUT file. `-` (hyphen char) is STDIN. See INPUT section for details")
+	flags.StringP("history-dir", "c", "OUT.history", "history root directory")
 	flags.StringP("history-path", "p", "%Y/%M", "dynamic direcotry path inside ROOT DIR using TIME FORMAT")
 	flags.StringP("duration", "d", "M", "rotates every DURATION. Accepted values: Y - yearly, M - monthly, W - weekly, D - daily, h - hourly, m - minutely")
 	flags.StringP("max-size", "S", "50M", "Forces rotation if current log size is greather then MAX_SIZE. Values in bytes. Examples: 100, 100K, 50M, 1G, 1T")
@@ -129,7 +186,7 @@ func init() {
 	flags.Bool("silent", false, "disable tee to STDOUT")
 
 	for _, v := range []string{
-		"out", "history-dir", "history-path", "duration",
+		"out", "in", "history-dir", "history-path", "duration",
 		"max-size", "history-count", "dir-mode",
 		"file-mode", "silent",
 	} {
