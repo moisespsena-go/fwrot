@@ -12,5 +12,5 @@
 *.out
 
 # Distribution files
-cli/dist/
-cli/cli*
+glogrotate/dist/
+glogrotate/glogrotate*
