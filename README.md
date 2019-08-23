@@ -11,6 +11,12 @@ go get -u github.com/moisespsena-go/glogrotate
 
 ### CLI
 
+#### Binary Download
+
+See to [release page](https://github.com/moisespsena-go/glogrotate/releases).
+
+
+#### Go! auto build
 
 ```bash
 go get -u github.com/moisespsena-go/glogrotate/glogrotate
