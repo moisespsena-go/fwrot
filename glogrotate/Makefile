@@ -14,4 +14,6 @@ upgrade:
 build_snapshot:
 	goreleaser --snapshot --skip-publish --rm-dist
 build:
-	goreleaser
+	goreleaser --rm-dist --skip-publish
+release:
+	goreleaser --rm-dist

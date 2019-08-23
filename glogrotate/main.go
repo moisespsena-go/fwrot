@@ -18,7 +18,7 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/moisespsena-go/glogrotate/cli/cmd"
+	"github.com/moisespsena-go/glogrotate/glogrotate/cmd"
 )
 
 var goversion, version, commit, date string
