@@ -1,4 +1,4 @@
-module github.com/moisespsena-go/glogrotate
+module github.com/moisespsena-go/glogrotation
 
 go 1.12
 

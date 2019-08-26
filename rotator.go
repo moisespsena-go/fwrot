@@ -60,7 +60,7 @@ func New(path string, options ...Options) *Rotator {
 	dir := filepath.Dir(path)
 
 	if opt.HistoryDir == "" {
-		opt.HistoryDir = path + ".glogrotate"
+		opt.HistoryDir = path + ".glogrotation"
 	}
 
 	name := filepath.Base(path)
