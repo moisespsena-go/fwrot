@@ -1,6 +1,6 @@
 # glogrotation
 
-Advanged Go! Log Rotation library and CLI implementation.
+Advanged Go! Log Rotation library implementation.
 
 ## Installation
 
