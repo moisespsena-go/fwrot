@@ -51,6 +51,8 @@ type Rotator struct {
 	mu             sync.RWMutex
 	wg             sync.WaitGroup
 	lastRotation   Control
+
+	Log logging.Logger
 }
 
 func New(path string, options ...Options) *Rotator {
@@ -73,6 +75,7 @@ func New(path string, options ...Options) *Rotator {
 		dir:     dir,
 		name:    name,
 		ext:     ext,
+		Log:     logging.WithPrefix(log, "rotator ["+name+" -> "+path+"]"),
 	}
 }
 
@@ -170,11 +173,12 @@ func (this *Rotator) AutoRotate(increaseSize int) (entry *FileHistroyEntry, err 
 	if ms := this.Options.MaxSize; ms >= 0 {
 		if ms == 0 {
 			ms = MaxSize
+			this.Options.MaxSize = ms
 		}
 		var s int64
 		if s, err = this.f.Seek(0, io.SeekEnd); err != nil {
 			return
-		} else if s += int64(increaseSize); s > this.Options.MaxSize {
+		} else if s += int64(increaseSize); s > ms {
 			return this.Rotate()
 		}
 	}
@@ -235,11 +239,17 @@ func (this *Rotator) loadControlOrCreate() (err error) {
 		}
 		return
 	}
-	defer f.Close()
 	var i int64
 	if err = binary.Read(f, binary.BigEndian, &i); err != nil {
-		return
+		f.Close()
+		if err == io.EOF {
+			this.lastRotation.Last = time.Now()
+			return this.saveControl()
+		} else {
+			return
+		}
 	}
+	f.Close()
 	this.lastRotation.Last = time.Unix(i, 0).In(time.Local)
 	return
 }
@@ -263,7 +273,7 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 	hRelPath, hPath := this.NewNameT(now.UTC())
 	this.lastRotation.Last = now
 	if err := this.saveControl(); err != nil {
-		log.Errorf("logging.rotator: save control of %q failed: %s", this.Path, err.Error())
+		this.Log.Errorf("save control of %q failed: %s", this.Path, err.Error())
 	}
 
 	old := this.f
@@ -275,7 +285,7 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 		if err == nil {
 			if err = os.Rename(this.Path, hPath); err != nil {
 				doerr := func() {
-					log.Errorf("logging.rotator: failed to create history entry log file of %q to %q: %s", this.Path, hRelPath, err.Error())
+					this.Log.Errorf("failed to create history entry log file of %q to %q: %s", this.Path, hRelPath, err.Error())
 				}
 				doerr()
 				hPath = filepath.Join(this.Path, TFormat(now, strings.TrimSuffix(name, ext)+"_"+T_FORMAT+ext))
@@ -284,7 +294,7 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 				}
 			}
 		} else {
-			log.Errorf("logging.rotator: failed to create history entry log dir of %q: %s", this.Path, err.Error())
+			this.Log.Errorf("failed to create history entry log dir of %q: %s", this.Path, err.Error())
 		}
 	}
 
@@ -297,20 +307,20 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 				defer this.wg.Done()
 				r, err := os.Open(hPath)
 				if err != nil {
-					log.Errorf("logging.rotator: failed to open for compress history log entry %q: %s", hRelPath, err.Error())
+					this.Log.Errorf("failed to open for compress history log entry %q: %s", hRelPath, err.Error())
 					return
 				}
 				w, err := os.OpenFile(hPath+".gz", os.O_RDWR|os.O_CREATE|os.O_TRUNC, this.Options.FileMode)
 				if err != nil {
-					log.Errorf("logging.rotator: failed to compress history log entry %q: %s", hRelPath, err.Error())
+					this.Log.Errorf("failed to compress history log entry %q: %s", hRelPath, err.Error())
 					return
 				}
 
 				if size, err := io.Copy(gzip.NewWriter(w), r); err == nil {
-					log.Debugf("logging.rotator: history log entry %q compressed: size=%s", hRelPath, humanize.Bytes(uint64(size)))
+					this.Log.Debugf("history log entry %q compressed: size=%s", hRelPath, humanize.Bytes(uint64(size)))
 					os.Remove(hPath)
 				} else {
-					log.Error(err)
+					this.Log.Error(err)
 					return
 				}
 
@@ -320,12 +330,12 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 					if len(history) > s {
 						for _, e := range history[s:] {
 							if err := os.Remove(e.AbsPath()); err != nil {
-								log.Error(err)
+								this.Log.Error(err)
 							} else if d := filepath.Dir(e.path); d != "." {
 								if err := path_helpers.Parents(d, string(filepath.Separator), func(sub string) (err error) {
 									d := filepath.Join(this.Options.HistoryDir, sub)
 									if df, err := os.Open(d); err != nil {
-										log.Error(err)
+										this.Log.Error(err)
 									} else if _, err := df.Readdirnames(1); err != nil {
 										if err == io.EOF {
 											err = os.Remove(d)
@@ -333,7 +343,7 @@ func (this *Rotator) Rotate() (entry *FileHistroyEntry, err error) {
 									}
 									return
 								}); err != nil && err != io.EOF {
-									log.Error(err)
+									this.Log.Error(err)
 								}
 							}
 						}
@@ -381,7 +391,7 @@ func (this *Rotator) History(from, to time.Time, count int64) (events Entries, e
 					root: this.Options.HistoryDir,
 				})
 			} else {
-				log.Errorf("bad entry name %q:", pth, err)
+				this.Log.Errorf("bad entry name %q:", pth, err)
 			}
 		}
 		return nil
